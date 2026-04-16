@@ -4,18 +4,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>2026 Mine Sweeper</title>
+    <title>2026 掃地雷 - iOS 優化版 (無震動)</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
-        /* 防止手機長按選取文字或彈出系統選單，優化插旗體驗 */
-        .no-select {
+        /* 強制禁用系統選單與文字選取，確保長按插旗順暢 */
+        * {
             -webkit-touch-callout: none;
             -webkit-user-select: none;
-            -khtml-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
             user-select: none;
-            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .no-select {
+            touch-action: none; /* 禁用預設手勢，防止長按時螢幕晃動 */
         }
     </style>
 </head>
@@ -43,22 +44,13 @@
         const statusElement = document.getElementById('status');
         const msgElement = document.getElementById('msg');
 
-        const colors = ['',
-            'text-blue-600',
-            'text-green-600',
-            'text-red-600',
-            'text-purple-600',
-            'text-red-900',
-            'text-teal-600',
-            'text-black',
-            'text-gray-600']
+        const colors = ['', 'text-blue-600', 'text-green-600', 'text-red-600', 'text-purple-600', 'text-red-900', 'text-teal-600', 'text-black', 'text-gray-600'];
 
         function placeMine(firstR, firstC) {
             let count = 0;
             while (count < MINES) {
                 let r = Math.floor(Math.random() * SIZE);
                 let c = Math.floor(Math.random() * SIZE);
-                // 確保地雷不會下在第一次點擊的位置及其周圍
                 if (!board[r][c].mine && (Math.abs(r - firstR) > 1 || Math.abs(c - firstC) > 1)) {
                     board[r][c].mine = true;
                     count++;
@@ -113,7 +105,6 @@
                 msgElement.innerText = '遊戲結束!💥';
                 msgElement.className = 'mt-4 text-center font-bold text-red-600 h-6';
                 gameOver = true;
-                // 遊戲結束顯示所有地雷
                 revealAllMines();
                 return;
             }
@@ -125,8 +116,7 @@
             } else {
                 for (let i = -1; i <= 1; i++) {
                     for (let j = -1; j <= 1; j++) {
-                        let nr = r + i;
-                        let nc = c + j;
+                        let nr = r + i, nc = c + j;
                         if (board[nr]?.[nc] && !board[nr][nc].rev) {
                             clickCell(nr, nc, boardElement.children[nr * SIZE + nc]);
                         }
@@ -140,8 +130,7 @@
             for (let r = 0; r < SIZE; r++) {
                 for (let c = 0; c < SIZE; c++) {
                     if (board[r][c].mine) {
-                        const cell = boardElement.children[r * SIZE + c];
-                        cell.innerText = '💣';
+                        boardElement.children[r * SIZE + c].innerText = '💣';
                     }
                 }
             }
@@ -149,29 +138,50 @@
 
         function init() {
             boardElement.innerHTML = '';
-            board = Array.from({ length: SIZE },
-                () => Array.from(
-                    { length: SIZE },
-                    () => ({ mine: false, rev: false, flag: false })
-                )
-            )
-            flags = 0;
-            gameOver = false;
-            firstClick = true;
+            board = Array.from({ length: SIZE }, () => 
+                Array.from({ length: SIZE }, () => ({ mine: false, rev: false, flag: false }))
+            );
+            flags = 0; gameOver = false; firstClick = true;
             statusElement.innerText = `🚩 ${MINES}`;
             msgElement.innerText = '';
 
             for (let r = 0; r < SIZE; r++) {
                 for (let c = 0; c < SIZE; c++) {
                     const cell = document.createElement('div');
-                    // 調整尺寸 w-8(32px) 在手機上較安全，電腦版維持 w-10(40px)
                     cell.className = 'w-8 h-8 sm:w-10 sm:h-10 bg-gray-200 flex items-center justify-center font-bold text-base sm:text-lg cursor-pointer hover:bg-gray-300 flex-shrink-0';
                     
+                    let timer;
+                    let isLongPress = false;
+
+                    // 處理手機端的長按插旗邏輯
+                    cell.addEventListener('touchstart', (e) => {
+                        isLongPress = false;
+                        timer = setTimeout(() => {
+                            isLongPress = true;
+                            toggleFlag(r, c, cell);
+                        }, 500); // 0.5 秒判定為長按
+                    }, { passive: true });
+
+                    cell.addEventListener('touchend', (e) => {
+                        clearTimeout(timer);
+                        if (isLongPress) {
+                            e.preventDefault(); // 防止長按放開後又觸發一次 clickCell
+                        }
+                    });
+
+                    cell.addEventListener('touchmove', () => clearTimeout(timer));
+
+                    // 電腦版左鍵點擊
+                    cell.onclick = () => { 
+                        if (!isLongPress) clickCell(r, c, cell); 
+                    };
+
+                    // 電腦版右鍵插旗
                     cell.oncontextmenu = (e) => {
                         e.preventDefault();
                         toggleFlag(r, c, cell);
                     };
-                    cell.onclick = () => clickCell(r, c, cell);
+
                     boardElement.appendChild(cell);
                 }
             }
