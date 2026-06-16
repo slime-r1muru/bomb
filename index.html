@@ -7,7 +7,6 @@
     <title>2026 掃地雷 - iOS 優化版 (無震動)</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
-        /* 強制禁用系統選單與文字選取，確保長按插旗順暢 */
         * {
             -webkit-touch-callout: none;
             -webkit-user-select: none;
@@ -16,7 +15,7 @@
         }
 
         .no-select {
-            touch-action: none; /* 禁用預設手勢，防止長按時螢幕晃動 */
+            touch-action: none;
         }
     </style>
 </head>
@@ -153,30 +152,27 @@
                     let timer;
                     let isLongPress = false;
 
-                    // 處理手機端的長按插旗邏輯
                     cell.addEventListener('touchstart', (e) => {
                         isLongPress = false;
                         timer = setTimeout(() => {
                             isLongPress = true;
                             toggleFlag(r, c, cell);
-                        }, 500); // 0.5 秒判定為長按
+                        }, 500);
                     }, { passive: true });
 
                     cell.addEventListener('touchend', (e) => {
                         clearTimeout(timer);
                         if (isLongPress) {
-                            e.preventDefault(); // 防止長按放開後又觸發一次 clickCell
+                            e.preventDefault();
                         }
                     });
 
                     cell.addEventListener('touchmove', () => clearTimeout(timer));
 
-                    // 電腦版左鍵點擊
                     cell.onclick = () => { 
                         if (!isLongPress) clickCell(r, c, cell); 
                     };
 
-                    // 電腦版右鍵插旗
                     cell.oncontextmenu = (e) => {
                         e.preventDefault();
                         toggleFlag(r, c, cell);
